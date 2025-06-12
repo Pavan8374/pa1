@@ -28,4 +28,13 @@ body {
   background-color: #000000;
   font-family: 'Inter', sans-serif;
 }
+
+@keyframes scroll-x {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-scroll-x {
+  animation: scroll-x 15s linear infinite;
+}
   
