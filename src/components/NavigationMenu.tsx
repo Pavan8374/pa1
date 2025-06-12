@@ -15,6 +15,11 @@ const NavigationMenu = ({ sectionRefs }: NavigationMenuProps) => {
     sectionRefs[key]?.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleNavigation = (page: string) => {
+    setCurrentPage(page);
+    document.getElementById(page)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="animate-[fadeInDown_1s_ease-out_0.3s_forwards] opacity-0">
       <div className="flex items-center gap-8 rounded-full border border-cyan-400/20 bg-black/10 px-8 py-4 backdrop-blur-lg">
@@ -28,7 +33,7 @@ const NavigationMenu = ({ sectionRefs }: NavigationMenuProps) => {
           <div
             key={item.name}
             className="group relative cursor-pointer"
-            onClick={() => handleClick(item.key)}
+            onClick={() => handleNavigation(item.key)}
             style={{ animationDelay: `${0.5 + index * 0.1}s` }}
           >
             <div className="animate-[fadeInUp_0.8s_ease-out_forwards] opacity-0 transition-all duration-300 hover:scale-110">

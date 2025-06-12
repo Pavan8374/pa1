@@ -24,7 +24,7 @@ const SideMenu = () => {
               label: 'Resume', 
               key:'resume', 
               color: 'from-purple-500 to-pink-500',
-              href: '/resume/Rambhukta_Pavan_Kumar.pdf'
+              href: 'resume/Rambhukta_Pavan_Kumar.pdf'
             },
             { 
               icon: '🎨', 

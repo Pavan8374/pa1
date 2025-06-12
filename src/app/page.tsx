@@ -28,7 +28,7 @@ export default function Home() {
           <Hero3D />
           <About />
           <Experience/>
-          <Skills/>
+          <Skills />
           <Projects/>
           <Contact/>
         </section>
