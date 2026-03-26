@@ -7,18 +7,8 @@ interface NavigationMenuProps {
   };
 }
 
-const NavigationMenu = ({ sectionRefs }: NavigationMenuProps) => {
-  const { setCurrentPage } = useNavigation();
-
-  const handleClick = (key: string) => {
-    setCurrentPage(key);
-    sectionRefs[key]?.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleNavigation = (page: string) => {
-    setCurrentPage(page);
-    document.getElementById(page)?.scrollIntoView({ behavior: 'smooth' });
-  };
+const NavigationMenu = ({}: NavigationMenuProps) => {
+  const { navigateTo } = useNavigation();
 
   return (
     <div className="animate-[fadeInDown_1s_ease-out_0.3s_forwards] opacity-0">
@@ -28,19 +18,20 @@ const NavigationMenu = ({ sectionRefs }: NavigationMenuProps) => {
           { name: '⚡ Skills', key: 'skills', desc: 'Tech arsenal' },
           { name: '🚀 Projects', key: 'projects', desc: 'Cosmic creations' },
           { name: '🌟 Experience', key: 'experience', desc: 'Professional orbit' },
+          { name: '🛰️ Station', key: 'station', desc: 'Orbital command' },
           { name: '📡 Contact', key: 'contact', desc: 'Connect across space' }
         ].map((item, index) => (
           <div
             key={item.name}
             className="group relative cursor-pointer"
-            onClick={() => handleNavigation(item.key)}
+            onClick={() => navigateTo(item.key)}
             style={{ animationDelay: `${0.5 + index * 0.1}s` }}
           >
             <div className="animate-[fadeInUp_0.8s_ease-out_forwards] opacity-0 transition-all duration-300 hover:scale-110">
-              <span className="block text-sm font-medium text-cyan-300 group-hover:text-white">
-                {item.name}
+              <span className="block text-xs font-bold tracking-widest text-cyan-300 uppercase transition-colors group-hover:text-white font-display">
+                {item.key}
               </span>
-              <span className="mt-1 block text-xs text-gray-400 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+              <span className="mt-1 block text-[10px] text-gray-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100 uppercase tracking-tighter">
                 {item.desc}
               </span>
             </div>

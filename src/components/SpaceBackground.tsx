@@ -1,7 +1,27 @@
-// components/SpaceBackground.tsx
 "use client";
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import * as THREE from "three";
+import { useNavigation } from './NavigationContext';
+import { 
+  createHomeUniverse, createAboutUniverse, createSkillsUniverse, 
+  createProjectsUniverse, createExperienceUniverse, createContactUniverse,
+  createStationUniverse, getCircleTexture
+} from "./CosmicBuilders";
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader.js';
+
+export const UNIVERSE_POSITIONS: Record<string, THREE.Vector3> = {
+  home: new THREE.Vector3(0, 0, 0),
+  about: new THREE.Vector3(5000, 0, 0),
+  skills: new THREE.Vector3(0, 5000, 0),
+  projects: new THREE.Vector3(0, 0, 5000),
+  experience: new THREE.Vector3(-5000, 0, 0),
+  contact: new THREE.Vector3(0, -5000, 0),
+  station: new THREE.Vector3(5000, 5000, 0),
+};
 
 interface SpaceBackgroundProps {
   children?: React.ReactNode;
@@ -12,368 +32,55 @@ const SpaceBackground: React.FC<SpaceBackgroundProps> = ({ children, className =
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene>(null);
   const rendererRef = useRef<THREE.WebGLRenderer>(null);
+  const composerRef = useRef<EffectComposer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera>(null);
-  const frameRef = useRef<number>(null);
+  const frameRef = useRef<number | null>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
   const [isLoaded, setIsLoaded] = useState(false);
+  const nebulaRef = useRef<THREE.Group | null>(null);
 
-  // 3D Objects refs
-  const cosmicStructureRef = useRef<THREE.Group>(null);
-  const planetsRef = useRef<THREE.Mesh[]>([]);
+  const { isWarping, targetPage } = useNavigation();
+  const isWarpingRef = useRef(false);
+  const targetPageRef = useRef('home');
+  const timeDataRef = useRef({ accumulatedTime: 0, lastNow: 0, warpFactor: 1 });
+  const cameraBasePosRef = useRef(new THREE.Vector3(0, 0, 0));
+  const warpStartPosRef = useRef(new THREE.Vector3(0, 0, 0));
+  
+  const universesRef = useRef<THREE.Group[]>([]);
   const lightsRef = useRef<THREE.PointLight[]>([]);
-  const texturesRef = useRef<THREE.Texture[]>([]);
 
-  // Create realistic cosmic structure with enhanced ring system
-  const createCosmicStructure = useCallback((scene: THREE.Scene) => {
-    // Core icosahedron
-    const coreGeometry = new THREE.IcosahedronGeometry(1.5, 3);
-    const coreMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0x4a00e0,
-      emissive: 0x8e2de2,
-      emissiveIntensity: 1.2,
-      metalness: 0.8,
-      roughness: 0.2,
-      clearcoat: 1.0,
-      transparent: true,
-      opacity: 0.95,
-      side: THREE.DoubleSide,
-    });
-    const core = new THREE.Mesh(coreGeometry, coreMaterial);
+  const warpStartTimeRef = useRef(0);
+  const localZRef = useRef(15);
 
-    // Create realistic ring system with multiple layers
-    const ringGroup = new THREE.Group();
-    
-    // Main ring with particles
-    const createRingLayer = (radius: number, thickness: number, particleCount: number, color: number, opacity: number) => {
-      const ringGeometry = new THREE.RingGeometry(radius - thickness/2, radius + thickness/2, 64, 8);
-      
-      // Create ring material with realistic properties
-      const ringMaterial = new THREE.MeshPhysicalMaterial({
-        color: color,
-        emissive: color,
-        emissiveIntensity: 0.3,
-        metalness: 0.1,
-        roughness: 0.8,
-        transparent: true,
-        opacity: opacity,
-        side: THREE.DoubleSide,
-        alphaTest: 0.1,
-      });
-
-      const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-      ring.rotation.x = Math.PI / 2;
-
-      // Add particle system for ring debris/dust
-      const particlePositions = new Float32Array(particleCount * 3);
-      const particleColors = new Float32Array(particleCount * 3);
-      const particleSizes = new Float32Array(particleCount);
-
-      for (let i = 0; i < particleCount; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const ringRadius = radius + (Math.random() - 0.5) * thickness;
-        const height = (Math.random() - 0.5) * 0.2;
-
-        particlePositions[i * 3] = Math.cos(angle) * ringRadius;
-        particlePositions[i * 3 + 1] = height;
-        particlePositions[i * 3 + 2] = Math.sin(angle) * ringRadius;
-
-        const particleColor = new THREE.Color(color);
-        particleColor.offsetHSL(0, 0, Math.random() * 0.3 - 0.15);
-        
-        particleColors[i * 3] = particleColor.r;
-        particleColors[i * 3 + 1] = particleColor.g;
-        particleColors[i * 3 + 2] = particleColor.b;
-
-        particleSizes[i] = Math.random() * 0.05 + 0.02;
-      }
-
-      const particleGeometry = new THREE.BufferGeometry();
-      particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
-      particleGeometry.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
-      particleGeometry.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
-
-      const particleMaterial = new THREE.PointsMaterial({
-        size: 0.03,
-        vertexColors: true,
-        transparent: true,
-        opacity: opacity * 1.5,
-        sizeAttenuation: true,
-        blending: THREE.AdditiveBlending,
-      });
-
-      const particles = new THREE.Points(particleGeometry, particleMaterial);
-
-      const layerGroup = new THREE.Group();
-      layerGroup.add(ring);
-      layerGroup.add(particles);
-      layerGroup.userData = {
-        rotationSpeed: 0.001 + Math.random() * 0.002,
-        particleRotationSpeed: 0.0005 + Math.random() * 0.001,
-      };
-
-      return layerGroup;
-    };
-
-    // Create multiple ring layers for depth and realism
-    const innerRing = createRingLayer(2.8, 0.3, 300, 0x00ffff, 0.4);
-    const middleRing = createRingLayer(3.2, 0.4, 400, 0x0088ff, 0.3);
-    const outerRing = createRingLayer(3.7, 0.5, 500, 0x4400ff, 0.25);
-    
-    // Add slight tilts to each ring for more realistic appearance
-    innerRing.rotation.z = Math.PI * 0.02;
-    middleRing.rotation.z = -Math.PI * 0.015;
-    outerRing.rotation.z = Math.PI * 0.01;
-
-    ringGroup.add(innerRing);
-    ringGroup.add(middleRing);
-    ringGroup.add(outerRing);
-
-    // Create energy streams connecting rings
-    const createEnergyStream = (startRadius: number, endRadius: number) => {
-      const streamGeometry = new THREE.CylinderGeometry(0.02, 0.02, Math.abs(endRadius - startRadius), 8);
-      const streamMaterial = new THREE.MeshBasicMaterial({
-        color: 0x00aaff,
-        transparent: true,
-        opacity: 0.6,
-      });
-
-      const stream = new THREE.Mesh(streamGeometry, streamMaterial);
-      stream.rotation.z = Math.PI / 2;
-      stream.position.x = (startRadius + endRadius) / 2;
-      stream.position.y = Math.sin(Math.random() * Math.PI * 2) * 0.1;
-      stream.position.z = Math.cos(Math.random() * Math.PI * 2) * 0.1;
-
-      return stream;
-    };
-
-    // Add energy streams
-    for (let i = 0; i < 8; i++) {
-      const stream1 = createEnergyStream(2.8, 3.2);
-      const stream2 = createEnergyStream(3.2, 3.7);
-      
-      stream1.rotation.y = (i / 8) * Math.PI * 2;
-      stream2.rotation.y = ((i + 0.5) / 8) * Math.PI * 2;
-      
-      ringGroup.add(stream1);
-      ringGroup.add(stream2);
+  useEffect(() => {
+    isWarpingRef.current = isWarping;
+    if (isWarping) {
+      warpStartPosRef.current.copy(cameraBasePosRef.current);
+      warpStartTimeRef.current = Date.now();
     }
+  }, [isWarping]);
 
-    // Create the main cosmic structure group
-    const cosmicStructure = new THREE.Group();
-    cosmicStructure.add(core);
-    cosmicStructure.add(ringGroup);
-    cosmicStructure.position.set(0, 0, 0);
+  useEffect(() => {
+    targetPageRef.current = targetPage;
+  }, [targetPage]);
 
-    // Store references for animation
-    cosmicStructure.userData = {
-      core: core,
-      ringLayers: [innerRing, middleRing, outerRing],
-    };
-
-    scene.add(cosmicStructure);
-    return cosmicStructure;
-  }, []);
-
-  // Create realistic planet textures
-  const createPlanetTexture = (color: THREE.Color, size = 512) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
-    const context = canvas.getContext("2d")!;
-
-    // Base gradient
-    const gradient = context.createRadialGradient(
-      size / 2,
-      size / 2,
-      0,
-      size / 2,
-      size / 2,
-      size / 2,
-    );
-    gradient.addColorStop(0, color.clone().offsetHSL(0, 0.1, 0.3).getStyle());
-    gradient.addColorStop(1, color.clone().offsetHSL(0, 0.1, -0.2).getStyle());
-
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, size, size);
-
-    // Add surface details (craters/mountains)
-    context.fillStyle = color.clone().offsetHSL(0, 0.05, -0.15).getStyle();
-    for (let i = 0; i < 50; i++) {
-      const x = Math.random() * size;
-      const y = Math.random() * size;
-      const radius = Math.random() * 15 + 3;
-      context.beginPath();
-      context.arc(x, y, radius, 0, Math.PI * 2);
-      context.fill();
-    }
-
-    // Add specular highlights
-    context.fillStyle = "rgba(255, 255, 255, 0.3)";
-    context.beginPath();
-    context.arc(size * 0.7, size * 0.3, size * 0.1, 0, Math.PI * 2);
-    context.fill();
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texturesRef.current.push(texture);
-    return texture;
-  };
-
-  // Create planet systems
-  const createPlanetSystems = useCallback((scene: THREE.Scene) => {
-    const planets: THREE.Mesh[] = [];
-    const colors = [
-      0xff6b6b, 0x4ecdc4, 0xffbe0b, 0xfb5607, 0x8338ec, 0x3a86ff, 0x06d6a0,
-      0x118ab2,
-    ];
-
-    // Create gas giant at center
-    const gasGiantGeometry = new THREE.SphereGeometry(1.8, 64, 64);
-    const gasGiantTexture = createPlanetTexture(new THREE.Color(0xff9e00));
-    const gasGiantMaterial = new THREE.MeshPhysicalMaterial({
-      map: gasGiantTexture,
-      bumpMap: gasGiantTexture,
-      bumpScale: 0.05,
-      metalness: 0.4,
-      roughness: 0.7,
-      clearcoat: 0.2,
-    });
-
-    const gasGiant = new THREE.Mesh(gasGiantGeometry, gasGiantMaterial);
-    gasGiant.position.set(0, 0, 0);
-    gasGiant.rotation.y = Math.PI / 4;
-    scene.add(gasGiant);
-    planets.push(gasGiant);
-
-    // Create orbiting planets
-    for (let i = 0; i < 7; i++) {
-      const planetSize = 0.5 + Math.random() * 0.4;
-      const geometry = new THREE.SphereGeometry(planetSize, 64, 64);
-
-      const texture = createPlanetTexture(
-        new THREE.Color(colors[i % colors.length]),
-      );
-      const material = new THREE.MeshPhysicalMaterial({
-        map: texture,
-        bumpMap: texture,
-        bumpScale: 0.03,
-        metalness: 0.3,
-        roughness: 0.8,
-        clearcoat: 0.1,
-      });
-
-      const planet = new THREE.Mesh(geometry, material);
-
-      // Position planets in orbital systems
-      const systemAngle = (i / 7) * Math.PI * 2;
-      const systemRadius = 5 + Math.random() * 3;
-      const orbitRadius = 1.5 + Math.random() * 1;
-
-      planet.position.x = Math.cos(systemAngle) * systemRadius;
-      planet.position.y = (Math.random() - 0.5) * 2;
-      planet.position.z = Math.sin(systemAngle) * systemRadius;
-
-      planet.userData = {
-        systemAngle: systemAngle,
-        systemRadius: systemRadius,
-        orbitRadius: orbitRadius,
-        orbitSpeed: 0.2 + Math.random() * 0.4,
-        rotationSpeed: 0.01 + Math.random() * 0.02,
-        initialPosition: planet.position.clone(),
-      };
-
-      // Add moons to some planets
-      if (i % 3 === 0) {
-        const moonGeometry = new THREE.SphereGeometry(planetSize * 0.4, 32, 32);
-        const moonMaterial = new THREE.MeshStandardMaterial({
-          color: 0xdddddd,
-          roughness: 0.9,
-          metalness: 0.1,
-        });
-        const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-
-        moon.position.x = orbitRadius * 0.8;
-        moon.userData = {
-          orbitSpeed: 0.5 + Math.random() * 0.5,
-          rotationSpeed: 0.02 + Math.random() * 0.03,
-        };
-
-        planet.add(moon);
-      }
-
-      scene.add(planet);
-      planets.push(planet);
-    }
-
-    return planets;
-  }, []);
-
-  // Create dynamic lighting system
-  const createLights = useCallback((scene: THREE.Scene) => {
-    // Ambient light
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
-    scene.add(ambientLight);
-
-    // Main directional light (sun)
-    const sunLight = new THREE.DirectionalLight(0xfff7d6, 1.5);
-    sunLight.position.set(10, 10, 10);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 1024;
-    sunLight.shadow.mapSize.height = 1024;
-    scene.add(sunLight);
-
-    // Point lights (stars)
-    const lights: THREE.PointLight[] = [];
-    const lightColors = [0x00ffff, 0xff55ff, 0x55ff55, 0xffff00];
-
-    for (let i = 0; i < 20; i++) {
-      const intensity = 0.5 + Math.random() * 1;
-      const distance = 30 + Math.random() * 50;
-      const light = new THREE.PointLight(
-        lightColors[i % lightColors.length],
-        intensity,
-        distance,
-      );
-
-      light.position.x = (Math.random() - 0.5) * 100;
-      light.position.y = (Math.random() - 0.5) * 100;
-      light.position.z = (Math.random() - 0.5) * 100;
-
-      light.userData = {
-        baseIntensity: intensity,
-        pulseSpeed: 0.5 + Math.random() * 1,
-      };
-
-      scene.add(light);
-      lights.push(light);
-    }
-
-    return lights;
-  }, []);
-
-  // Create starfield background
+  // Create hyper starfield
   const createStarField = useCallback((scene: THREE.Scene) => {
-    const starCount = 2000;
+    const starCount = 30000;
     const positions = new Float32Array(starCount * 3);
     const colors = new Float32Array(starCount * 3);
     const sizes = new Float32Array(starCount);
 
     for (let i = 0; i < starCount; i++) {
       const i3 = i * 3;
+      positions[i3] = (Math.random() - 0.5) * 15000;
+      positions[i3 + 1] = (Math.random() - 0.5) * 15000;
+      positions[i3 + 2] = (Math.random() - 0.5) * 15000;
 
-      // Position
-      positions[i3] = (Math.random() - 0.5) * 200;
-      positions[i3 + 1] = (Math.random() - 0.5) * 200;
-      positions[i3 + 2] = (Math.random() - 0.5) * 100 - 50;
-
-      // Color
       const color = new THREE.Color();
       color.setHSL(Math.random(), 0.2, 0.7 + Math.random() * 0.3);
-      colors[i3] = color.r;
-      colors[i3 + 1] = color.g;
-      colors[i3 + 2] = color.b;
-
-      // Size
-      sizes[i] = Math.random() * 1.5 + 0.5;
+      colors[i3] = color.r; colors[i3 + 1] = color.g; colors[i3 + 2] = color.b;
+      sizes[i] = Math.random() * 2 + 0.5;
     }
 
     const geometry = new THREE.BufferGeometry();
@@ -382,234 +89,341 @@ const SpaceBackground: React.FC<SpaceBackgroundProps> = ({ children, className =
     geometry.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
 
     const material = new THREE.PointsMaterial({
-      size: 0.5,
-      vertexColors: true,
-      sizeAttenuation: true,
-      transparent: true,
-      opacity: 0.9,
+      size: 1.2, vertexColors: true, sizeAttenuation: true, transparent: true, opacity: 0.9,
+      map: getCircleTexture(), alphaTest: 0.01
     });
-
     const stars = new THREE.Points(geometry, material);
     scene.add(stars);
+  }, []);
 
-    return stars;
+  const createNebula = useCallback((scene: THREE.Scene) => {
+    const nebula = new THREE.Group();
+    const count = 12;
+    const colors = [0x4400aa, 0x0044aa, 0x6600aa, 0x003366];
+    
+    for (let i = 0; i < count; i++) {
+      const geo = new THREE.PlaneGeometry(8000, 8000);
+      const mat = new THREE.MeshBasicMaterial({
+        color: colors[i % colors.length],
+        transparent: true,
+        opacity: 0.05,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.BackSide,
+      });
+      const plane = new THREE.Mesh(geo, mat);
+      
+      const angle = (i / count) * Math.PI * 2;
+      const radius = 10000;
+      plane.position.set(
+        Math.cos(angle) * radius,
+        (Math.random() - 0.5) * 5000,
+        Math.sin(angle) * radius
+      );
+      plane.lookAt(0, 0, 0);
+      nebula.add(plane);
+    }
+    scene.add(nebula);
+    nebulaRef.current = nebula;
+  }, []);
+
+  const createLights = useCallback((scene: THREE.Scene) => {
+    scene.add(new THREE.AmbientLight(0x202030, 0.4));
+    const sunLight = new THREE.DirectionalLight(0xfff7d6, 1.2);
+    sunLight.position.set(100, 100, 100);
+    scene.add(sunLight);
+    
+    // Add glowing environmental lights that pulse
+    const lights: THREE.PointLight[] = [];
+    for (let i = 0; i < 30; i++) {
+        const light = new THREE.PointLight(
+            new THREE.Color().setHSL(Math.random(), 0.5, 0.7),
+            0.8,
+            8000
+        );
+        light.position.set(
+            (Math.random() - 0.5) * 12000,
+            (Math.random() - 0.5) * 12000,
+            (Math.random() - 0.5) * 12000
+        );
+        light.userData = { 
+            baseIntensity: 0.8, 
+            pulseSpeed: 0.2 + Math.random() * 0.5 
+        };
+        scene.add(light);
+        lights.push(light);
+    }
+    return lights;
+  }, []);
+
+  const createStreamers = useCallback((scene: THREE.Scene) => {
+    const streamerCount = 50;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(streamerCount * 3);
+    const vel = new Float32Array(streamerCount);
+    for(let i=0; i<streamerCount; i++) {
+        pos[i*3] = (Math.random() - 0.5) * 50;
+        pos[i*3+1] = (Math.random() - 0.5) * 50;
+        pos[i*3+2] = Math.random() * -1000;
+        vel[i] = 10 + Math.random() * 20;
+    }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending });
+    const points = new THREE.Points(geo, mat);
+    scene.add(points);
+    return { points, vel };
   }, []);
 
   // Animation loop
+  const streamersRef = useRef<{ points: THREE.Points, vel: Float32Array } | null>(null);
   const animate = useCallback(() => {
     if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
 
-    const time = Date.now() * 0.001;
+    const now = Date.now() * 0.001;
+    if (timeDataRef.current.lastNow === 0) timeDataRef.current.lastNow = now;
+    const dt = now - timeDataRef.current.lastNow;
+    timeDataRef.current.lastNow = now;
 
-    // Animate cosmic structure
-    if (cosmicStructureRef.current) {
-      // Animate the core
-      if (cosmicStructureRef.current.userData.core) {
-        cosmicStructureRef.current.userData.core.rotation.x = time * 0.05;
-        cosmicStructureRef.current.userData.core.rotation.y = time * 0.1;
-        cosmicStructureRef.current.userData.core.rotation.z = time * 0.03;
-      }
+    // Warp logic
+    const targetWarp = isWarpingRef.current ? 40 : 1;
+    timeDataRef.current.warpFactor += (targetWarp - timeDataRef.current.warpFactor) * 0.03;
+    const speedMult = timeDataRef.current.warpFactor;
 
-      // Animate ring layers with different speeds and directions
-      if (cosmicStructureRef.current.userData.ringLayers) {
-        cosmicStructureRef.current.userData.ringLayers.forEach((layer: THREE.Group, index: number) => {
-          const baseSpeed = layer.userData.rotationSpeed;
-          const direction = index % 2 === 0 ? 1 : -1;
-          
-          layer.rotation.y += baseSpeed * direction;
-          layer.rotation.x = Math.sin(time * 0.1 + index) * 0.02;
-          layer.rotation.z += baseSpeed * 0.5 * direction;
-          
-          // Animate individual particles within each layer
-          layer.children.forEach((child) => {
-            if (child instanceof THREE.Points) {
-              child.rotation.y += layer.userData.particleRotationSpeed * direction;
-            }
-          });
+    timeDataRef.current.accumulatedTime += dt * speedMult;
+    const time = timeDataRef.current.accumulatedTime;
+
+    // Transition camera base pos perfectly over 3000ms
+    const targetPos = UNIVERSE_POSITIONS[targetPageRef.current] || UNIVERSE_POSITIONS['home'];
+    if (isWarpingRef.current) {
+      const elapsed = Date.now() - warpStartTimeRef.current;
+      const t = Math.min(elapsed / 3000, 1);
+      const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      cameraBasePosRef.current.lerpVectors(warpStartPosRef.current, targetPos, ease);
+    } else {
+      cameraBasePosRef.current.copy(targetPos);
+    }
+
+    // Animate universes
+    universesRef.current.forEach((univ) => {
+      const uData = univ.userData;
+      if (uData.type === 'home' && uData.core) {
+        uData.core.rotation.x = time * 0.05;
+        uData.core.rotation.y = time * 0.1;
+        uData.ringLayers.forEach((layer: THREE.Group, idx: number) => {
+          layer.rotation.y += layer.userData.rotationSpeed * (idx % 2 === 0 ? 1 : -1) * speedMult;
         });
       }
-    }
-
-    // Animate planets and their moons
-    planetsRef.current.forEach((planet) => {
-      // Planet orbit
-      if (planet.userData.systemAngle !== undefined) {
-        planet.userData.systemAngle += planet.userData.orbitSpeed * 0.01;
-        planet.position.x =
-          Math.cos(planet.userData.systemAngle) * planet.userData.systemRadius;
-        planet.position.z =
-          Math.sin(planet.userData.systemAngle) * planet.userData.systemRadius;
+      if (uData.type === 'about' && uData.rotationSpeed) {
+        univ.rotation.y += uData.rotationSpeed * speedMult;
+        if (uData.atmosphere) {
+            uData.atmosphere.scale.setScalar(1 + Math.sin(time * 0.5) * 0.05);
+            uData.atmosphere.material.opacity = 0.1 + Math.sin(time * 0.5) * 0.05;
+        }
       }
-
-      // Planet rotation
-      planet.rotation.y += planet.userData.rotationSpeed || 0.01;
-      planet.rotation.x += (planet.userData.rotationSpeed || 0.01) * 0.3;
-
-      // Animate moons
-      planet.children.forEach((moon) => {
-        moon.rotation.y += moon.userData.rotationSpeed || 0.02;
-        moon.position.x =
-          Math.cos(time * moon.userData.orbitSpeed) *
-          planet.userData.orbitRadius;
-        moon.position.z =
-          Math.sin(time * moon.userData.orbitSpeed) *
-          planet.userData.orbitRadius;
-      });
+      if (uData.type === 'skills') {
+        uData.wireframe.rotation.y += uData.rotationSpeed * speedMult;
+        uData.wireframe.rotation.x += uData.rotationSpeed * 0.5 * speedMult;
+        uData.core.rotation.y -= uData.rotationSpeed * 2 * speedMult;
+        
+        // Data flow animation
+        if (uData.movers && uData.nodesPos) {
+            const positions = uData.movers.geometry.attributes.position.array;
+            const count = positions.length / 3;
+            for(let i=0; i<count; i++) {
+                // Slower tracers
+                positions[i*3] += (Math.random() - 0.5) * 0.02 * speedMult;
+                positions[i*3+1] += (Math.random() - 0.5) * 0.02 * speedMult;
+                positions[i*3+2] += (Math.random() - 0.5) * 0.02 * speedMult;
+                // Fade effect logic
+            }
+            uData.movers.geometry.attributes.position.needsUpdate = true;
+        }
+      }
+      if (uData.type === 'projects') {
+        univ.rotation.y += uData.rotationSpeed * speedMult;
+      }
+      if (uData.type === 'experience') {
+        uData.angle += uData.orbitSpeed * speedMult;
+        uData.star1.position.x = Math.cos(uData.angle) * 3;
+        uData.star1.position.z = Math.sin(uData.angle) * 3;
+        uData.star2.position.x = Math.cos(uData.angle + Math.PI) * 3;
+        uData.star2.position.z = Math.sin(uData.angle + Math.PI) * 3;
+      }
+      if (uData.type === 'contact') {
+        if (uData.disk) {
+          uData.disk.rotation.y += uData.rotationSpeed * speedMult;
+        }
+      }
+      if (uData.type === 'station') {
+        uData.stationRing.rotation.z += uData.rotationSpeed * 5 * speedMult;
+        uData.planet.rotation.y += uData.rotationSpeed * speedMult;
+      }
     });
 
-    // Animate lights (pulsing stars)
-    lightsRef.current.forEach((light) => {
-      light.intensity =
-        light.userData.baseIntensity *
-        (0.8 + Math.sin(time * light.userData.pulseSpeed) * 0.4);
-    });
-
-    // Camera movement with mouse
-    if (cameraRef.current) {
-      cameraRef.current.position.x +=
-        (mouseRef.current.x * 3 - cameraRef.current.position.x) * 0.01;
-      cameraRef.current.position.y +=
-        (mouseRef.current.y * 2 - cameraRef.current.position.y) * 0.01;
-      cameraRef.current.lookAt(0, 0, 0);
+    if (nebulaRef.current) {
+        nebulaRef.current.rotation.y += 0.0001 * speedMult;
+        nebulaRef.current.rotation.x += 0.00005 * speedMult;
     }
 
-    rendererRef.current.render(sceneRef.current, cameraRef.current);
+    lightsRef.current.forEach((light) => {
+      light.intensity = light.userData.baseIntensity * (0.7 + Math.sin(time * light.userData.pulseSpeed) * 0.3);
+    });
+
+    // Camera movement
+    const targetFov = isWarpingRef.current ? 160 : 60;
+    cameraRef.current.fov += (targetFov - cameraRef.current.fov) * 0.05;
+    cameraRef.current.updateProjectionMatrix();
+
+    const targetZ = isWarpingRef.current ? 2 : 15;
+    localZRef.current += (targetZ - localZRef.current) * 0.05;
+
+    cameraRef.current.position.x = cameraBasePosRef.current.x + mouseRef.current.x * 5;
+    cameraRef.current.position.y = cameraBasePosRef.current.y + mouseRef.current.y * 5;
+    cameraRef.current.position.z = cameraBasePosRef.current.z + localZRef.current;
+
+    cameraRef.current.lookAt(cameraBasePosRef.current);
+
+    if (streamersRef.current && isWarpingRef.current) {
+        const pos = streamersRef.current.points.geometry.attributes.position.array as Float32Array;
+        const count = pos.length / 3;
+        for(let i=0; i<count; i++) {
+            pos[i*3+2] += streamersRef.current.vel[i] * speedMult * 0.5;
+            if (pos[i*3+2] > 100) {
+                pos[i*3+2] = -1000;
+                pos[i*3] = (Math.random() - 0.5) * 100;
+                pos[i*3+1] = (Math.random() - 0.5) * 100;
+            }
+        }
+        streamersRef.current.points.geometry.attributes.position.needsUpdate = true;
+        streamersRef.current.points.visible = true;
+    } else if (streamersRef.current) {
+        streamersRef.current.points.visible = false;
+    }
+
+    if (composerRef.current) {
+        composerRef.current.render();
+    } else if (rendererRef.current && sceneRef.current && cameraRef.current) {
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+    }
     frameRef.current = requestAnimationFrame(animate);
   }, []);
 
-  // Handle mouse movement
   const handleMouseMove = useCallback((event: MouseEvent) => {
     mouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
   }, []);
 
-  // Handle window resize
   const handleResize = useCallback(() => {
     if (!cameraRef.current || !rendererRef.current || !mountRef.current) return;
-
     const width = mountRef.current.clientWidth;
     const height = mountRef.current.clientHeight;
-
     cameraRef.current.aspect = width / height;
     cameraRef.current.updateProjectionMatrix();
     rendererRef.current.setSize(width, height);
   }, []);
 
-  // Initialize Three.js scene
   useEffect(() => {
     if (!mountRef.current) return;
-
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000010);
-    scene.fog = new THREE.Fog(0x000020, 20, 100);
+    scene.fog = new THREE.Fog(0x000020, 20, 15000);
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(
-      60,
-      mountRef.current.clientWidth / mountRef.current.clientHeight,
-      0.1,
-      1000,
-    );
+    const camera = new THREE.PerspectiveCamera(60, mountRef.current.clientWidth / mountRef.current.clientHeight, 0.1, 20000);
     camera.position.z = 15;
-    camera.position.y = 2;
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: true,
-      powerPreference: "high-performance",
+    const renderer = new THREE.WebGLRenderer({ 
+        alpha: true, 
+        antialias: false, // Turn off for bloom performance
+        powerPreference: "high-performance" 
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(
-      mountRef.current.clientWidth,
-      mountRef.current.clientHeight,
-    );
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
     rendererRef.current = renderer;
-
     mountRef.current.appendChild(renderer.domElement);
 
-    cosmicStructureRef.current = createCosmicStructure(scene);
-    planetsRef.current = createPlanetSystems(scene);
+    // Setup Post-Processing Composer
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        1.5, // slightly more strength for "Wow" factor
+        0.5, // radius
+        0.85 // threshold
+    );
+    composer.addPass(bloomPass);
+
+    const gammaPass = new ShaderPass(GammaCorrectionShader);
+    composer.addPass(gammaPass);
+    composerRef.current = composer;
+
+    universesRef.current.push(
+      createHomeUniverse(scene, UNIVERSE_POSITIONS['home']),
+      createAboutUniverse(scene, UNIVERSE_POSITIONS['about']),
+      createSkillsUniverse(scene, UNIVERSE_POSITIONS['skills']),
+      createProjectsUniverse(scene, UNIVERSE_POSITIONS['projects']),
+      createExperienceUniverse(scene, UNIVERSE_POSITIONS['experience']),
+      createContactUniverse(scene, UNIVERSE_POSITIONS['contact']),
+      createStationUniverse(scene, UNIVERSE_POSITIONS['station'])
+    );
+
     lightsRef.current = createLights(scene);
     createStarField(scene);
-
+    createNebula(scene);
+    streamersRef.current = createStreamers(scene);
     handleResize();
-
     animate();
     setIsLoaded(true);
 
     window.addEventListener("mousemove", handleMouseMove);
-    const resizeObserver = new ResizeObserver(handleResize);
+    const resizeObserver = new ResizeObserver(() => {
+        handleResize();
+        if (composerRef.current) {
+            composerRef.current.setSize(mountRef.current?.clientWidth || window.innerWidth, mountRef.current?.clientHeight || window.innerHeight);
+        }
+    });
     resizeObserver.observe(mountRef.current);
 
     return () => {
-      if (frameRef.current) {
-        cancelAnimationFrame(frameRef.current);
-      }
-
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
       window.removeEventListener("mousemove", handleMouseMove);
-      if (mountRef.current) {
-        resizeObserver.unobserve(mountRef.current);
-      }
-
-      if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeChild(renderer.domElement);
-      }
-
-      // Dispose of all resources
-      scene.traverse((object) => {
-        if (object instanceof THREE.Mesh) {
-          object.geometry.dispose();
-          if (Array.isArray(object.material)) {
-            object.material.forEach((material) => material.dispose());
-          } else {
-            object.material.dispose();
-          }
-        }
-      });
-
-      // Dispose textures
-      texturesRef.current.forEach((texture) => texture.dispose());
-
+      if (mountRef.current) resizeObserver.unobserve(mountRef.current);
+      if (mountRef.current && renderer.domElement) mountRef.current.removeChild(renderer.domElement);
+      scene.clear();
       renderer.dispose();
     };
-  }, [
-    animate,
-    createCosmicStructure,
-    createPlanetSystems,
-    createLights,
-    createStarField,
-    handleMouseMove,
-    handleResize,
-  ]);
+  }, [animate, createLights, createStarField, handleMouseMove, handleResize]);
 
   return (
     <div className={`relative ${className}`}>
-      {/* Three.js Canvas Container - Fixed Background */}
-      <div
-        ref={mountRef}
-        className="fixed inset-0 z-0"
-        style={{
-          opacity: isLoaded ? 1 : 0,
-          transition: "opacity 1.5s ease-in-out",
-        }}
-      />
+        {/* Loading Overlay */}
+        {!isLoaded && (
+            <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black">
+                <div className="relative h-2 w-48 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full w-full origin-left animate-[loading_2s_ease-in-out_infinite] bg-gradient-to-r from-blue-500 to-purple-500" />
+                </div>
+                <p className="mt-4 text-xs font-medium tracking-widest text-blue-400 uppercase animate-pulse">
+                    Initializing Multiverse
+                </p>
+            </div>
+        )}
 
-      {/* Nebula overlay - Fixed */}
-      <div
-        className="pointer-events-none fixed inset-0 z-10"
-        style={{
-          background: `radial-gradient(circle at center, rgba(138, 43, 226, 0.1) 0%, transparent 70%)`,
-          opacity: 0.7,
-        }}
-      />
-
-      {/* Content Container */}
+      <div ref={mountRef} className="fixed inset-0 z-0" style={{ opacity: isLoaded ? 1 : 0, transition: "opacity 1.5s ease-in-out" }} />
+      <div className="pointer-events-none fixed inset-0 z-10" style={{ background: `radial-gradient(circle at center, rgba(138, 43, 226, 0.1) 0%, transparent 70%)`, opacity: 0.7 }} />
       <div className="relative z-20">
         {children}
       </div>
+      <style jsx global>{`
+        @keyframes loading {
+            0% { transform: scaleX(0); transform-origin: left; }
+            45% { transform: scaleX(1); transform-origin: left; }
+            50% { transform: scaleX(1); transform-origin: right; }
+            100% { transform: scaleX(0); transform-origin: right; }
+        }
+      `}</style>
     </div>
   );
 };

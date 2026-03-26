@@ -8,25 +8,20 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-html {
-  scroll-behavior: smooth;
+  --font-sans: var(--font-outfit), sans-serif;
+  --font-display: var(--font-orbitron), sans-serif;
 }
 
 body {
-  color: #e5e7eb; /* roughly Tailwind's text-gray-200 */
+  color: #e5e7eb;
   background-color: #000000;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-outfit), sans-serif;
+}
+
+h1, h2, h3, .font-display {
+    font-family: var(--font-orbitron), sans-serif;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
 }
 
 @keyframes scroll-x {

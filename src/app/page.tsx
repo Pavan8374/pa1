@@ -11,29 +11,41 @@ import Experience from '@/components/experience';
 import Skills from '@/components/skills';
 import Projects from '@/components/projects';
 import Contact from '@/components/contact';
+import Station from '@/components/station';
+import AudioManager from '@/components/AudioManager';
+
+import { useNavigation } from '@/components/NavigationContext';
+
+const MainContent = () => {
+  const { isWarping } = useNavigation();
+  return (
+    <section 
+      className={`relative z-20 transition-all duration-[3000ms] ease-in-out ${
+        isWarping 
+          ? 'opacity-0 scale-90 blur-2xl pointer-events-none' 
+          : 'opacity-100 scale-100 blur-0'
+      }`}
+    >
+      <Hero3D />
+      <About />
+      <Experience />
+      <Skills />
+      <Projects />
+      <Station />
+      <Contact />
+      <AudioManager />
+    </section>
+  );
+};
 
 export default function Home() {
-  const aboutRef = useRef<HTMLDivElement>(null);
-  const skillsRef = useRef<HTMLDivElement>(null);
-  const projectsRef = useRef<HTMLDivElement>(null);
-  const experienceRef = useRef<HTMLDivElement>(null);
-  const contactRef = useRef<HTMLDivElement>(null);
-
   return (
-    <main className="relative z-10">
+    <main className="relative z-10 bg-black overflow-hidden">
       <NavigationProvider>
         <SpaceBackground />
-        <NavigationMenu sectionRefs={{}}          />
-        <section className="relative z-20">
-          <Hero3D />
-          <About />
-          <Experience/>
-          <Skills />
-          <Projects/>
-          <Contact/>
-        </section>
+        <NavigationMenu sectionRefs={{}} />
+        <MainContent />
       </NavigationProvider>
     </main>
-
   );
 }

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useNavigation } from "./NavigationContext";
 
 const SideMenu = () => {
-  const { setCurrentPage } = useNavigation();
+  const { navigateTo } = useNavigation();
 
   return (
     <div className="absolute right-8 top-1/2 z-20 -translate-y-1/2 transform">
@@ -17,7 +17,7 @@ const SideMenu = () => {
               label: 'Portfolio', 
               key:'portfolio', 
               color: 'from-cyan-500 to-blue-500',
-              action: () => setCurrentPage('home')
+              action: () => navigateTo('home')
             },
             { 
               icon: '💼', 

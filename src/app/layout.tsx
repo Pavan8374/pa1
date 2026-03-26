@@ -1,9 +1,17 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Outfit, Orbitron } from 'next/font/google';
 import { NavigationProvider } from '@/components/NavigationContext';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const outfit = Outfit({ 
+  subsets: ['latin'],
+  variable: '--font-outfit',
+});
+
+const orbitron = Orbitron({
+  subsets: ['latin'],
+  variable: '--font-orbitron',
+});
 
 export const metadata: Metadata = {
   title: 'Pavan Kumar | Portfolio',
@@ -17,7 +25,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-black text-white`}>
+      <body className={`${outfit.variable} ${orbitron.variable} font-sans bg-black text-white h-full overflow-hidden`}>
         <NavigationProvider>
           {children}
         </NavigationProvider>

@@ -7,12 +7,7 @@ import InfoCards from "./InfoCards";
 import { useNavigation } from './NavigationContext';
 
 const Hero3D: React.FC = () => {
-  const { setCurrentPage } = useNavigation();
-
-  const handleNavigation = (page: string) => {
-    setCurrentPage(page);
-    document.getElementById(page)?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const { navigateTo } = useNavigation();
 
   return (
     <section className="relative flex h-screen items-center justify-center overflow-hidden">
@@ -20,10 +15,10 @@ const Hero3D: React.FC = () => {
       <div className="absolute top-16 left-1/2 z-20 w-full max-w-5xl -translate-x-1/2 px-6 text-center sm:px-8">
         <div className="relative space-y-4">
           <div className="relative">
-            <h1 className="animate-[gradient_4s_ease-in-out_infinite] animate-pulse bg-gradient-to-r from-cyan-400 via-pink-400 via-purple-400 to-green-400 bg-[length:400%_400%] bg-clip-text text-5xl font-black text-transparent sm:text-6xl lg:text-7xl">
+            <h1 className="animate-[gradient_4s_ease-in-out_infinite] animate-pulse bg-gradient-to-r from-cyan-400 via-pink-400 via-purple-400 to-green-400 bg-[length:400%_400%] bg-clip-text text-5xl font-black text-transparent sm:text-6xl lg:text-7xl font-display tracking-widest">
               Pavan Kumar
             </h1>
-            <h1 className="absolute inset-0 -z-10 text-5xl font-black text-cyan-400/20 blur-md sm:text-6xl lg:text-7xl">
+            <h1 className="absolute inset-0 -z-10 text-5xl font-black text-cyan-400/20 blur-md sm:text-6xl lg:text-7xl font-display tracking-widest">
               Pavan Kumar
             </h1>
           </div>
@@ -40,8 +35,8 @@ const Hero3D: React.FC = () => {
       <div className="absolute bottom-32 left-1/2 z-20 -translate-x-1/2 transform">
         <div className="flex animate-[fadeInUp_1s_ease-out_1.5s_forwards] flex-col items-center justify-center gap-6 opacity-0 sm:flex-row">
           <button 
-            onClick={() => handleNavigation('projects')} 
-            className="group relative transform overflow-hidden rounded-full bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 px-10 py-5 text-lg font-bold text-white transition-all duration-500 hover:rotate-2 hover:scale-110 hover:shadow-2xl hover:shadow-cyan-500/30"
+            onClick={() => navigateTo('projects')} 
+            className="group relative transform overflow-hidden rounded-full bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 px-10 py-5 text-sm font-bold text-white transition-all duration-500 hover:rotate-2 hover:scale-110 hover:shadow-2xl hover:shadow-cyan-500/30 uppercase tracking-widest font-display"
           >
             <span className="relative z-10 flex items-center gap-2">
               🚀 Explore My Universe
@@ -51,8 +46,8 @@ const Hero3D: React.FC = () => {
           </button>
 
           <button 
-            onClick={() => handleNavigation('contact')} 
-            className="group relative transform rounded-full border-2 border-cyan-400 bg-black/20 px-10 py-5 text-lg font-bold text-cyan-400 backdrop-blur-sm transition-all duration-500 hover:-rotate-2 hover:scale-110 hover:bg-cyan-400 hover:text-black hover:shadow-2xl hover:shadow-cyan-400/30"
+            onClick={() => navigateTo('contact')} 
+            className="group relative transform rounded-full border-2 border-cyan-400 bg-black/20 px-10 py-5 text-sm font-bold text-cyan-400 backdrop-blur-sm transition-all duration-500 hover:-rotate-2 hover:scale-110 hover:bg-cyan-400 hover:text-black hover:shadow-2xl hover:shadow-cyan-400/30 uppercase tracking-widest font-display"
           >
             <span className="flex items-center gap-2">💫 Let's Connect</span>
           </button>

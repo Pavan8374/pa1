@@ -13,7 +13,7 @@ module.exports = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value: "default-src 'self'; img-src 'self' https: data:; script-src 'self'; style-src 'self' 'unsafe-inline';",
+            value: "default-src 'self'; img-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss:;",
           },
         ],
       },
