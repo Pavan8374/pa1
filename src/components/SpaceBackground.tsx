@@ -206,12 +206,22 @@ const SpaceBackground: React.FC<SpaceBackgroundProps> = ({ children, className =
     // Animate universes
     universesRef.current.forEach((univ) => {
       const uData = univ.userData;
-      if (uData.type === 'home' && uData.core) {
-        uData.core.rotation.x = time * 0.05;
-        uData.core.rotation.y = time * 0.1;
-        uData.ringLayers.forEach((layer: THREE.Group, idx: number) => {
-          layer.rotation.y += layer.userData.rotationSpeed * (idx % 2 === 0 ? 1 : -1) * speedMult;
-        });
+      if (uData.type === 'home') {
+        if (uData.sun) {
+            uData.sun.scale.setScalar(1 + Math.sin(time * 0.5) * 0.02);
+        }
+        if (uData.corona) {
+            uData.corona.scale.setScalar(1 + Math.sin(time * 0.3) * 0.05);
+        }
+        if (uData.panels) {
+            uData.panels.rotation.y += 0.002 * speedMult;
+            uData.panels.children.forEach((panel: THREE.Group, i: number) => {
+                panel.rotation.x = Math.sin(time + i) * 0.1;
+            });
+        }
+        if (uData.dust) {
+            uData.dust.rotation.y -= 0.0005 * speedMult;
+        }
       }
       if (uData.type === 'about') {
         const core = uData.core as THREE.Mesh;
@@ -406,9 +416,9 @@ const SpaceBackground: React.FC<SpaceBackgroundProps> = ({ children, className =
 
     const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        1.5, // slightly more strength for "Wow" factor
-        0.5, // radius
-        0.85 // threshold
+        0.8, // Reduced from 1.5 for "little less light"
+        0.4, // radius
+        0.9 // threshold (raised to focus only on brightest parts)
     );
     composer.addPass(bloomPass);
 

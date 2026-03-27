@@ -24,36 +24,113 @@ export const createHomeUniverse = (scene: THREE.Scene, position: THREE.Vector3) 
   const group = new THREE.Group();
   group.position.copy(position);
 
-  // Core icosahedron
-  const coreGeometry = new THREE.IcosahedronGeometry(1.5, 3);
-  const coreMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x4a00e0, emissive: 0x8e2de2, emissiveIntensity: 1.2,
-    metalness: 0.8, roughness: 0.2, clearcoat: 1.0, transparent: true, opacity: 0.95, side: THREE.DoubleSide,
+  const contentGroup = new THREE.Group();
+  contentGroup.position.z = -25; // Dramatic wide cinematic view
+  group.add(contentGroup);
+
+  // 1. Hyper-Realistic Star Core (White-Blue High Temperature)
+  const coreGeo = new THREE.SphereGeometry(4, 64, 64);
+  const coreMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    emissive: 0x88ccff,
+    emissiveIntensity: 5.0,
+    metalness: 0,
+    roughness: 1,
   });
-  const core = new THREE.Mesh(coreGeometry, coreMaterial);
-  group.add(core);
+  const sun = new THREE.Mesh(coreGeo, coreMat);
+  contentGroup.add(sun);
 
-  const ringGroup = new THREE.Group();
-  const createRingLayer = (radius: number, thickness: number, color: number, opacity: number) => {
-    const ringGeometry = new THREE.RingGeometry(radius - thickness / 2, radius + thickness / 2, 64, 8);
-    const ringMaterial = new THREE.MeshPhysicalMaterial({
-      color, emissive: color, emissiveIntensity: 0.3,
-      transparent: true, opacity, side: THREE.DoubleSide
-    });
-    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-    ring.rotation.x = Math.PI / 2;
-    const layerGroup = new THREE.Group();
-    layerGroup.add(ring);
-    layerGroup.userData = { rotationSpeed: 0.001 + Math.random() * 0.002 };
-    return layerGroup;
+  // Realistic Corona (Soft Volumetric Glow)
+  const coronaGeo = new THREE.SphereGeometry(8, 64, 64);
+  const coronaMat = new THREE.MeshBasicMaterial({
+    color: 0x4488ff,
+    transparent: true,
+    opacity: 0.1,
+    blending: THREE.AdditiveBlending,
+    side: THREE.BackSide
+  });
+  const corona = new THREE.Mesh(coronaGeo, coronaMat);
+  contentGroup.add(corona);
+
+  // 2. High-Fidelity Solar Array Megastructure
+  const structureGroup = new THREE.Group();
+  const panelMat = new THREE.MeshStandardMaterial({
+    color: 0x222222,
+    emissive: 0x001122,
+    metalness: 0.9,
+    roughness: 0.2,
+    side: THREE.DoubleSide
+  });
+  const strutMat = new THREE.MeshStandardMaterial({
+    color: 0x444444,
+    metalness: 1.0,
+    roughness: 0.1
+  });
+
+  // Create orbiting solar panels
+  const panelCount = 12;
+  const panels = new THREE.Group();
+  for(let i=0; i<panelCount; i++) {
+    const angle = (i / panelCount) * Math.PI * 2;
+    const r = 10;
+    
+    const panel = new THREE.Group();
+    // The panel surface
+    const surface = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 0.1), panelMat);
+    panel.add(surface);
+    
+    // The connection strut
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 4, 8), strutMat);
+    strut.position.x = -2;
+    strut.rotation.z = Math.PI / 2;
+    panel.add(strut);
+
+    panel.position.set(Math.cos(angle) * r, Math.sin(angle) * 2, Math.sin(angle) * r);
+    panel.lookAt(0, 0, 0);
+    panel.rotation.y += Math.PI / 8; // Tilted for realism
+    panels.add(panel);
+  }
+  structureGroup.add(panels);
+
+  // Orbital Docking Ring (Thin Lattice)
+  const ringGeo = new THREE.TorusGeometry(15, 0.05, 16, 128);
+  const ring = new THREE.Mesh(ringGeo, strutMat);
+  ring.rotation.x = Math.PI/2;
+  structureGroup.add(ring);
+  
+  contentGroup.add(structureGroup);
+
+  // 3. Physically Accurate Accretion Dust (Thin & Grainy)
+  const dustCount = 15000;
+  const dPos = new Float32Array(dustCount * 3);
+  const dCol = new Float32Array(dustCount * 3);
+  for(let i=0; i<dustCount; i++) {
+    const r = 12 + Math.pow(Math.random(), 2) * 30;
+    const angle = Math.random() * Math.PI * 2;
+    dPos[i*3] = Math.cos(angle) * r;
+    dPos[i*3+1] = (Math.random() - 0.5) * 0.2; // Extremely thin physically
+    dPos[i*3+2] = Math.sin(angle) * r;
+    
+    const color = new THREE.Color().setHSL(0.6, 0.8, 0.4 + Math.random() * 0.2);
+    dCol[i*3] = color.r; dCol[i*3+1] = color.g; dCol[i*3+2] = color.b;
+  }
+  const dustGeo = new THREE.BufferGeometry();
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(dPos, 3));
+  dustGeo.setAttribute('color', new THREE.BufferAttribute(dCol, 3));
+  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+    size: 0.1, vertexColors: true, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.4, map: getCircleTexture()
+  }));
+  contentGroup.add(dust);
+
+  // 4. Star Lights (Shadow-casting point lights)
+  const sunLight = new THREE.PointLight(0x88ccff, 10, 100);
+  contentGroup.add(sunLight);
+
+  group.userData = { 
+    type: 'home', 
+    sun, corona, panels, dust,
+    rotationSpeed: 0.0005 // Realistic, slow rotation
   };
-
-  ringGroup.add(createRingLayer(2.8, 0.3, 0x00ffff, 0.4));
-  ringGroup.add(createRingLayer(3.2, 0.4, 0x0088ff, 0.3));
-  ringGroup.add(createRingLayer(3.7, 0.5, 0x4400ff, 0.25));
-
-  group.add(ringGroup);
-  group.userData = { type: 'home', core, ringLayers: ringGroup.children };
   scene.add(group);
   return group;
 };
