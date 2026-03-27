@@ -5,7 +5,7 @@ import Hero3D from '@/components/Hero3D';
 import SectionWrapper from '@/components/SectionWrapper';
 import SpaceBackground from '@/components/SpaceBackground';
 import { NavigationProvider } from '@/components/NavigationContext';
-import NavigationMenu from '@/components/NavigationMenu';
+import DestinationLauncher from '@/components/DestinationLauncher';
 import About from '@/components/about';
 import Experience from '@/components/experience';
 import Skills from '@/components/skills';
@@ -40,10 +40,10 @@ const MainContent = () => {
 
 export default function Home() {
   return (
-    <main className="relative z-10 bg-black overflow-hidden">
-      <NavigationProvider>
+    <main className="relative z-10 bg-black min-h-screen">
+        <NavigationProvider>
         <SpaceBackground />
-        <NavigationMenu sectionRefs={{}} />
+        <DestinationLauncher />
         <MainContent />
       </NavigationProvider>
     </main>

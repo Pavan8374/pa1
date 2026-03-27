@@ -25,7 +25,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${outfit.variable} ${orbitron.variable} font-sans bg-black text-white h-full overflow-hidden`}>
+      <body className={`${outfit.variable} ${orbitron.variable} font-sans bg-black text-white`}>
         <NavigationProvider>
           {children}
         </NavigationProvider>

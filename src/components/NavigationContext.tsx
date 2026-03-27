@@ -49,60 +49,15 @@ export const NavigationProvider: React.FC<{children: ReactNode}> = ({ children }
       // Let the dust settle
       setTimeout(() => {
         setIsWarping(false);
+        lastScrollTime.current = Date.now(); // Reset scroll time here
       }, 300);
     }, 3000);
   };
 
   useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (isWarping) return;
-      
-      const now = Date.now();
-      if (now - lastScrollTime.current < 2000) return; // 2s debounce for "flicking"
-      
-      const currentIndex = sections.indexOf(currentPage);
-      if (e.deltaY > 50 && currentIndex < sections.length - 1) {
-        lastScrollTime.current = now;
-        navigateTo(sections[currentIndex + 1]);
-      } else if (e.deltaY < -50 && currentIndex > 0) {
-        lastScrollTime.current = now;
-        navigateTo(sections[currentIndex - 1]);
-      }
-    };
-
-    const handleTouchStart = (e: TouchEvent) => {
-        touchStart.current = e.touches[0].clientY;
-    };
-
-    const handleTouchEnd = (e: any) => {
-        if (isWarping) return;
-        const touchEnd = e.changedTouches[0].clientY;
-        const delta = touchStart.current - touchEnd;
-        
-        const now = Date.now();
-        if (now - lastScrollTime.current < 2000) return;
-
-        const currentIndex = sections.indexOf(currentPage);
-        if (Math.abs(delta) > 50) {
-            if (delta > 0 && currentIndex < sections.length - 1) {
-                lastScrollTime.current = now;
-                navigateTo(sections[currentIndex + 1]);
-            } else if (delta < 0 && currentIndex > 0) {
-                lastScrollTime.current = now;
-                navigateTo(sections[currentIndex - 1]);
-            }
-        }
-    };
-
-    window.addEventListener('wheel', handleWheel, { passive: true });
-    window.addEventListener('touchstart', handleTouchStart as any);
-    window.addEventListener('touchend', handleTouchEnd as any);
-    return () => {
-        window.removeEventListener('wheel', handleWheel);
-        window.removeEventListener('touchstart', handleTouchStart as any);
-        window.removeEventListener('touchend', handleTouchEnd as any);
-    };
-  }, [currentPage, isWarping]);
+    // Scroll and touch-based teleportation has been removed at user request.
+    // Natural scrolling now works normally, and teleportation is only triggered via menu items.
+  }, []);
 
   return (
     <NavigationContext.Provider value={{ currentPage, setCurrentPage, isMenuOpen, setIsMenuOpen, isWarping, targetPage, navigateTo }}>

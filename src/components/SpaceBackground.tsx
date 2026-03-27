@@ -213,41 +213,88 @@ const SpaceBackground: React.FC<SpaceBackgroundProps> = ({ children, className =
           layer.rotation.y += layer.userData.rotationSpeed * (idx % 2 === 0 ? 1 : -1) * speedMult;
         });
       }
-      if (uData.type === 'about' && uData.rotationSpeed) {
-        univ.rotation.y += uData.rotationSpeed * speedMult;
-        if (uData.atmosphere) {
-            uData.atmosphere.scale.setScalar(1 + Math.sin(time * 0.5) * 0.05);
-            uData.atmosphere.material.opacity = 0.1 + Math.sin(time * 0.5) * 0.05;
+      if (uData.type === 'about') {
+        const core = uData.core as THREE.Mesh;
+        const clouds = uData.clouds as THREE.Group;
+        const points = uData.points as THREE.Points;
+        
+        if (core) core.scale.setScalar(1 + Math.sin(time * 2) * 0.1);
+        if (clouds) {
+          clouds.rotation.y += 0.001 * speedMult;
+          clouds.children.forEach((c: any, i: number) => {
+            c.rotation.z += 0.002 * (i % 2 === 0 ? 1 : -1) * speedMult;
+          });
         }
+        if (points) points.rotation.y -= 0.002 * speedMult;
       }
       if (uData.type === 'skills') {
-        uData.wireframe.rotation.y += uData.rotationSpeed * speedMult;
-        uData.wireframe.rotation.x += uData.rotationSpeed * 0.5 * speedMult;
-        uData.core.rotation.y -= uData.rotationSpeed * 2 * speedMult;
+        const pulsar = uData.pulsar as THREE.Mesh;
+        const beamTop = uData.beamTop as THREE.Points;
+        const beamBot = uData.beamBot as THREE.Points;
+        const ringGroup = uData.ringGroup as THREE.Group;
         
-        // Data flow animation
-        if (uData.movers && uData.nodesPos) {
-            const positions = uData.movers.geometry.attributes.position.array;
-            const count = positions.length / 3;
-            for(let i=0; i<count; i++) {
-                // Slower tracers
-                positions[i*3] += (Math.random() - 0.5) * 0.02 * speedMult;
-                positions[i*3+1] += (Math.random() - 0.5) * 0.02 * speedMult;
-                positions[i*3+2] += (Math.random() - 0.5) * 0.02 * speedMult;
-                // Fade effect logic
-            }
-            uData.movers.geometry.attributes.position.needsUpdate = true;
+        if (pulsar) pulsar.rotation.y += 0.5 * speedMult;
+        if (beamTop) beamTop.rotation.y += 0.2 * speedMult;
+        if (beamBot) beamBot.rotation.y += 0.2 * speedMult;
+        if (ringGroup) {
+          ringGroup.children.forEach((r: any, i: number) => {
+            r.scale.setScalar(1 + Math.sin(time * 3 + i) * 0.1);
+            r.rotation.z += 0.01 * speedMult;
+          });
         }
       }
       if (uData.type === 'projects') {
-        univ.rotation.y += uData.rotationSpeed * speedMult;
+        if (uData.disk) {
+           uData.disk.rotation.y -= uData.rotationSpeed * speedMult;
+        }
+        if (uData.coreAnimation) {
+           uData.coreAnimation.scale.setScalar(1 + Math.sin(time * 5) * 0.1);
+        }
+        if (uData.jets) {
+           uData.jets.rotation.y += uData.rotationSpeed * 2 * speedMult;
+           const positions = uData.jets.geometry.attributes.position.array;
+           const velocities = uData.jets.geometry.attributes.aVelocity.array;
+           
+           for(let i=0; i<velocities.length; i++) {
+               const yIdx = i * 3 + 1;
+               positions[yIdx] += velocities[i] * speedMult * 0.1;
+               
+               const isTop = velocities[i] > 0;
+               const absY = Math.abs(positions[yIdx]);
+               
+               if (absY > 35) {
+                   positions[yIdx] = (Math.random() * 2) * (isTop ? 1 : -1);
+                   const angle = Math.random() * Math.PI * 2;
+                   const r = Math.pow(Math.random(), 2) * 0.2;
+                   positions[i * 3] = Math.cos(angle) * r;
+                   positions[i * 3 + 2] = Math.sin(angle) * r;
+               } else {
+                   positions[i*3] *= 1.005;
+                   positions[i*3+2] *= 1.005;
+               }
+           }
+           uData.jets.geometry.attributes.position.needsUpdate = true;
+        }
       }
       if (uData.type === 'experience') {
-        uData.angle += uData.orbitSpeed * speedMult;
-        uData.star1.position.x = Math.cos(uData.angle) * 3;
-        uData.star1.position.z = Math.sin(uData.angle) * 3;
-        uData.star2.position.x = Math.cos(uData.angle + Math.PI) * 3;
-        uData.star2.position.z = Math.sin(uData.angle + Math.PI) * 3;
+        const tubes = uData.tubes as THREE.Group;
+        const points = uData.points as THREE.Points;
+        
+        if (tubes) {
+          tubes.children.forEach((t: any, i: number) => {
+            t.position.z += 0.5 * speedMult;
+            if (t.position.z > 20) t.position.z = -100;
+          });
+        }
+        if (points) {
+          points.rotation.z += 0.01 * speedMult;
+          const pos = points.geometry.attributes.position.array as Float32Array;
+          for(let i=0; i<pos.length/3; i++) {
+            pos[i*3+2] += 1 * speedMult;
+            if (pos[i*3+2] > 50) pos[i*3+2] = -150;
+          }
+          points.geometry.attributes.position.needsUpdate = true;
+        }
       }
       if (uData.type === 'contact') {
         if (uData.disk) {
@@ -255,8 +302,17 @@ const SpaceBackground: React.FC<SpaceBackgroundProps> = ({ children, className =
         }
       }
       if (uData.type === 'station') {
-        uData.stationRing.rotation.z += uData.rotationSpeed * 5 * speedMult;
-        uData.planet.rotation.y += uData.rotationSpeed * speedMult;
+        if (uData.stationRing) uData.stationRing.rotation.y += uData.rotationSpeed * speedMult;
+        if (uData.launcher1) {
+            uData.launcher1.position.y = 25 + Math.sin(time * 2) * 0.5;
+            uData.launcher1.rotation.y = Math.sin(time * 0.5) * 0.1;
+        }
+        if (uData.galaxies && uData.galaxies.length === 3) {
+            // Very slow, majestic rotation for the diverse background galaxies
+            uData.galaxies[0].rotation.y -= uData.rotationSpeed * 0.3 * speedMult;
+            uData.galaxies[1].rotation.y += uData.rotationSpeed * 0.4 * speedMult;
+            uData.galaxies[2].rotation.z += uData.rotationSpeed * 0.2 * speedMult;
+        }
       }
     });
 
@@ -398,10 +454,10 @@ const SpaceBackground: React.FC<SpaceBackgroundProps> = ({ children, className =
   }, [animate, createLights, createStarField, handleMouseMove, handleResize]);
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative pointer-events-none ${className}`}>
         {/* Loading Overlay */}
         {!isLoaded && (
-            <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black">
+            <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black pointer-events-auto">
                 <div className="relative h-2 w-48 overflow-hidden rounded-full bg-white/10">
                     <div className="h-full w-full origin-left animate-[loading_2s_ease-in-out_infinite] bg-gradient-to-r from-blue-500 to-purple-500" />
                 </div>
@@ -411,9 +467,9 @@ const SpaceBackground: React.FC<SpaceBackgroundProps> = ({ children, className =
             </div>
         )}
 
-      <div ref={mountRef} className="fixed inset-0 z-0" style={{ opacity: isLoaded ? 1 : 0, transition: "opacity 1.5s ease-in-out" }} />
+      <div ref={mountRef} className="fixed inset-0 z-0 pointer-events-none" style={{ opacity: isLoaded ? 1 : 0, transition: "opacity 1.5s ease-in-out" }} />
       <div className="pointer-events-none fixed inset-0 z-10" style={{ background: `radial-gradient(circle at center, rgba(138, 43, 226, 0.1) 0%, transparent 70%)`, opacity: 0.7 }} />
-      <div className="relative z-20">
+      <div className="relative z-20 pointer-events-auto">
         {children}
       </div>
       <style jsx global>{`
